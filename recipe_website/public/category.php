@@ -1,4 +1,6 @@
 <?php
+session_start();
+
 // 1. Include the database connection
 require_once __DIR__ . '/../src/db_connect.php'; // Provides $pdo
 
@@ -101,6 +103,19 @@ if (!isset($queryError)) {
     }
 }
 
+// Fetch user's favorite recipes if logged in
+$userFavorites = [];
+if (isset($_SESSION['username'])) {
+    try {
+        $stmt = $pdo->prepare("SELECT Favorites FROM User WHERE Username = ?");
+        $stmt->execute([$_SESSION['username']]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $userFavorites = $result ? json_decode($result['Favorites'], true) : [];
+    } catch (PDOException $e) {
+        error_log("Database error fetching favorites: " . $e->getMessage());
+    }
+}
+
 
 /**
  * Function to extract the first valid image URL from the stored string.
@@ -124,12 +139,24 @@ function extractFirstImageUrl($imageUrlString) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
     <link rel="stylesheet" href="style.css">
-    <style> /* Pagination styles - can move to style.css */
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> <style> /* Pagination styles - can move to style.css */
         .pagination { margin: 2em 0 1em 0; text-align: center; }
         .pagination a, .pagination span { display: inline-block; padding: 0.5em 1em; margin: 0 0.2em; border: 1px solid #ddd; color: #0056b3; text-decoration: none; border-radius: 3px; }
         .pagination a:hover { background-color: #eee; }
         .pagination .current-page { background-color: #0056b3; color: white; border-color: #0056b3; font-weight: bold; }
         .pagination .disabled { color: #aaa; border-color: #eee; pointer-events: none; }
+        .favorite-star {
+            cursor: pointer;
+            color: #ccc; /* Default color (outline) */
+        }
+        .favorite-star.favorited {
+            color: gold; /* Color when favorited */
+        }
+        .favorite-message {
+            font-size: 0.8em;
+            color: #777;
+            margin-top: 0.2em;
+        }
     </style>
 </head>
 <body>
@@ -167,6 +194,9 @@ function extractFirstImageUrl($imageUrlString) {
                                 <?php echo htmlspecialchars($recipe['Recipe_Name']); ?>
                             </a>
                             <span class="rating">(Rating: <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?>)</span>
+                            <i class="far fa-star favorite-star <?php echo (isset($_SESSION['username']) && in_array($recipe['RecipeId'], $userFavorites)) ? 'favorited' : ''; ?>"
+                               data-recipe-id="<?php echo htmlspecialchars($recipe['RecipeId']); ?>"></i>
+                            <span class="favorite-message" id="fav-msg-<?php echo htmlspecialchars($recipe['RecipeId']); ?>"></span>
                         </div>
                     </li>
                 <?php endforeach; ?>
@@ -219,5 +249,45 @@ function extractFirstImageUrl($imageUrlString) {
     </footer>
 
     <script src="script.js"></script>
+    <script>
+        // Favorite star functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.favorite-star').forEach(star => {
+                star.addEventListener('click', function() {
+                    const recipeId = this.dataset.recipeId;
+                    const messageEl = document.getElementById(`fav-msg-${recipeId}`);
+
+                    // Check if user is logged in (PHP variable from session)
+                    <?php if (isset($_SESSION['username'])): ?>
+                        // User is logged in, call update_favorites.php
+                        fetch('update_favorites.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ recipeId: recipeId, action: this.classList.contains('favorited') ? 'remove' : 'add' })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                this.classList.toggle('favorited');
+                                messageEl.textContent = this.classList.contains('favorited') ? 'Added to favorites' : 'Removed from favorites';
+                                setTimeout(() => messageEl.textContent = '', 2000); // Clear message after 2 seconds
+                            } else {
+                                messageEl.textContent = data.message;
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            messageEl.textContent = 'Failed to update favorites.';
+                        });
+                    <?php else: ?>
+                        // User is not logged in
+                        messageEl.textContent = 'Please sign in to add recipes to favorites.';
+                    <?php endif; ?>
+                });
+            });
+        });
+    </script>
 </body>
 </html>
