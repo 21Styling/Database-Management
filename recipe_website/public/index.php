@@ -9,6 +9,22 @@ $pageTitle = "Recipe Website - Home";
 // --- Fetch Newest Recipes WITH IMAGES ---
 $newestRecipes = [];
 $newestRecipesError = null; // Variable to hold potential errors
+$searchTerm = $_GET['q'] ?? '';
+$searchResults = [];
+if ($searchTerm) {
+    try {
+        $sql = "SELECT RecipeId, Recipe_Name, Average_Rating, Image_URL
+                FROM Recipes
+                WHERE Recipe_Name LIKE :searchTerm
+                ORDER BY Recipe_Name ASC
+                LIMIT 20";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['searchTerm' => '%' . $searchTerm . '%']);
+        $searchResults = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Search Query Error: " . $e->getMessage());
+    }
+}
 try {
     // Fetch latest 5 recipes that have an image URL
     $sqlNewest = "SELECT RecipeId, Recipe_Name, Average_Rating, Image_URL
@@ -86,15 +102,34 @@ function extractFirstImageUrl($imageUrlString) {
     <button onclick="window.location.href='signin.php'">Sign In</button>
 <?php endif; ?>
 </div>
+     <main>
+         <section class="home-section">
+             <h2>Search Recipes by Name</h2>
+             <form action="index.php" method="get" class="recipe-search-form">
+                 <input type="text" name="q" placeholder="Enter recipe name..." required>
+                 <button type="submit">Search</button>
+             </form>
+         </section>
+ 
+         <?php if (isset($_GET['q'])): ?>  <?php if (!empty($searchResults)): ?>
+                 <ul class="recipe-list">
+                     <?php foreach ($searchResults as $recipe): ?>
+                         <li>
+                             <a href="recipe_detail.php?id=<?php echo htmlspecialchars($recipe['RecipeId']); ?>">
+                                 <?php echo htmlspecialchars($recipe['Recipe_Name']); ?>
+                             </a>
+                             <span>(Rating: <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?>)</span>
+                         </li>
+                     <?php endforeach; ?>
+                 </ul>
+             <?php else: ?>
+                 <p id="no-results-message">No recipes found.</p>
+             <?php endif; ?>
+         <?php endif; ?>
+ 
+         </main>
     <main class="container">
         <section class="home-section">
-        <h2>Search Recipes by Name</h2>
-        <form action="search_results.php" method="get" class="recipe-search-form">
-        <input type="text" name="q" placeholder="Enter recipe name..." required>
-        <button type="submit">Search</button>
-    </form>
-</section>
-
             <h2>Newest Recipes (with Images)</h2> <?php /* Updated heading slightly */ ?>
             <?php if ($newestRecipesError): ?>
                 <p class="error-message"><?php echo $newestRecipesError; ?></p>
@@ -155,5 +190,16 @@ function extractFirstImageUrl($imageUrlString) {
     </footer>
 
     <script src="script.js"></script>
+    <script>
+        // JavaScript to hide the "No recipes found" message after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const noResultsMessage = document.getElementById('no-results-message');
+            if (noResultsMessage) {
+                setTimeout(function() {
+                    noResultsMessage.style.display = 'none';
+                }, 5000); // 5000 milliseconds = 5 seconds
+            }
+        });
+    </script>
 </body>
 </html>
