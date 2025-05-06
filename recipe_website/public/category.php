@@ -123,7 +123,7 @@ function extractFirstImageUrl($imageUrlString) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="style.css">
     <style> /* Pagination styles - can move to style.css */
         .pagination { margin: 2em 0 1em 0; text-align: center; }
         .pagination a, .pagination span { display: inline-block; padding: 0.5em 1em; margin: 0 0.2em; border: 1px solid #ddd; color: #0056b3; text-decoration: none; border-radius: 3px; }
@@ -218,6 +218,6 @@ function extractFirstImageUrl($imageUrlString) {
         <p>&copy; <?php echo date('Y'); ?> Recipe Website</p>
     </footer>
 
-    <script src="js/script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
