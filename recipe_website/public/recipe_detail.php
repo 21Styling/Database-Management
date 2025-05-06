@@ -1,3 +1,4 @@
+
 <?php
 // 1. Include the database connection
 require_once __DIR__ . '/../src/db_connect.php'; // Provides $pdo object
@@ -74,7 +75,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="style.css">
     <style>
         /* Basic styling specific to detail page (can move to style.css) */
         .recipe-section { margin-bottom: 1.5em; }
@@ -131,6 +132,7 @@ try {
                 <strong>Category:</strong> <?php echo htmlspecialchars($recipe['Category'] ?? 'N/A'); ?> |
                 <strong>Rating:</strong> <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?> / 5
                 (<?php echo htmlspecialchars($recipe['Rating_Count'] ?? 0); ?> ratings) |
+                <strong>Recipe ID:</strong> <?php echo htmlspecialchars($recipe['RecipeId'] ?? 'N/A'); ?> |
                 <strong>Author ID:</strong> <?php echo htmlspecialchars($recipe['AuthorId'] ?? 'N/A'); ?>
             </p>
             <?php if (!empty($recipe['Date'])): ?>
@@ -182,6 +184,6 @@ try {
     <hr>
     <p><a href="index.php">&laquo; Back to Recipe List</a></p>
 
-    <script src="js/script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
