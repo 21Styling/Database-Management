@@ -43,6 +43,9 @@ foreach ($names as $i => $n) {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo $pageTitle; ?></title>
+    <link rel="stylesheet" href="style.css">
   <title>Your Ingredients</title>
   <style>
     .edit-row { display: none; }
