@@ -1,1 +1,198 @@
+/* Basic Reset / Defaults */
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+    background-color: #f4f4f4;
+    color: #333;
+}
 
+a {
+    color: #0056b3;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+img { /* Basic responsive images */
+    max-width: 100%;
+    height: auto;
+}
+
+/* Layout & Sections */
+.site-header,
+.site-footer {
+    background-color: #333;
+    color: #fff;
+    padding: 1em 2em;
+    text-align: center;
+}
+
+.site-header h1 {
+    margin: 0 0 0.2em 0;
+}
+
+.site-header p {
+    margin: 0;
+    color: #ccc;
+}
+
+.container {
+    max-width: 960px; /* Limit content width */
+    margin: 2em auto; /* Center the container with space */
+    padding: 1.5em; /* Add padding inside container */
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 5px; /* Slightly rounded corners */
+    overflow: hidden; /* Contain floats or margins */
+}
+
+.home-section {
+    padding: 1.5em 0; /* Adjust padding */
+    border-bottom: 1px solid #eee;
+}
+
+.home-section:last-child {
+    border-bottom: none;
+}
+
+.home-section h2 {
+    margin-top: 0;
+    color: #555;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 0.3em;
+    margin-bottom: 1em;
+}
+
+/* Recipe List Styles */
+.recipe-list-with-images li {
+    display: flex; /* Use flexbox for layout */
+    align-items: flex-start; /* Align items to the top */
+    padding: 0.8em 0;
+    border-bottom: 1px dotted #ddd;
+}
+.recipe-list-with-images li:last-child {
+    border-bottom: none;
+}
+
+.recipe-list-image {
+    width: 80px; /* Fixed width for thumbnails */
+    height: 60px; /* Fixed height */
+    object-fit: cover; /* Crop image to fit dimensions */
+    margin-right: 1em; /* Space between image and text */
+    border-radius: 3px;
+    flex-shrink: 0; /* Prevent image from shrinking */
+}
+
+.recipe-list-info {
+    flex-grow: 1; /* Allow text to take remaining space */
+}
+.recipe-list-info a {
+    font-weight: bold;
+    display: block; /* Make link take full width */
+    margin-bottom: 0.2em;
+}
+
+.recipe-list-info .rating {
+    font-size: 0.9em;
+    color: #777;
+}
+
+/* Category List Styles */
+.category-list {
+    columns: 3; /* Display categories in columns (adjust count as needed) */
+    -webkit-columns: 3;
+    -moz-columns: 3;
+    column-gap: 2em;
+}
+
+.category-list li {
+    padding: 0.2em 0;
+    border-bottom: none; /* Remove bottom border for columns */
+    break-inside: avoid-column; /* Prevent items breaking across columns */
+}
+
+
+/* Recipe Detail Page Styles */
+.recipe-main-image {
+     max-width: 100%;
+     height: auto;
+     display: block;
+     margin-bottom: 1.5em;
+     border-radius: 5px;
+     box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Optional shadow */
+}
+
+.recipe-meta {
+    background-color: #f9f9f9;
+    padding: 0.8em 1em;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-bottom: 1.5em;
+    font-size: 0.9em;
+    color: #555;
+}
+.recipe-meta p {
+    margin: 0.3em 0;
+}
+.recipe-meta strong {
+    color: #333;
+}
+
+.recipe-section { margin-bottom: 1.5em; }
+.recipe-section h2 { margin-bottom: 0.5em; color: #444; }
+.recipe-ingredients ul, .recipe-instructions ol { margin-left: 2em; }
+.recipe-ingredients p { margin: 0.5em 0; } /* Adjust spacing for ingredients */
+
+
+/* Utility */
+.error-message {
+    color: #d9534f; /* Red for errors */
+    font-weight: bold;
+}
+
+/* Responsive (Very Basic Example) */
+@media (max-width: 768px) {
+    .category-list {
+        columns: 2;
+        -webkit-columns: 2;
+        -moz-columns: 2;
+    }
+}
+
+@media (max-width: 600px) {
+    .site-header,
+    .site-footer {
+        padding: 1em;
+        text-align: center;
+    }
+    .container {
+        margin: 1em 0;
+        border-radius: 0;
+        padding: 1em;
+    }
+    .recipe-list-with-images li {
+        flex-direction: column; /* Stack image and text on small screens */
+        align-items: center;
+        text-align: center;
+    }
+    .recipe-list-image {
+        width: 150px; /* Larger image when stacked */
+        height: 110px;
+        margin-right: 0;
+        margin-bottom: 0.5em;
+    }
+    .category-list {
+        columns: 1;
+        -webkit-columns: 1;
+        -moz-columns: 1;
+    }
+}
