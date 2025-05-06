@@ -10,10 +10,12 @@ require_once __DIR__ . '/../src/db_connect.php'; ?>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
     <link rel="stylesheet" href="style.css">
-  <title>Sign up</title>
+    <header class="site-header">
+        <h1>Sign up</h1>
+        <p><a href="index.php">&laquo; Back to Home</a></p>
+    </header>
 </head>
 <body>
-  <h1>Sign Up</h1>
   <form id="signupForm">
       <input type="email" id="email" placeholder="Email" required /><br/>
       <input type="text" id="username" placeholder="Username" required /><br/>
