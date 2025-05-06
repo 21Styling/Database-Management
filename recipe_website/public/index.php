@@ -69,7 +69,7 @@ function extractFirstImageUrl($imageUrlString) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
@@ -77,7 +77,14 @@ function extractFirstImageUrl($imageUrlString) {
         <h1>Welcome to the Recipe Website!</h1>
         <p>Find delicious recipes for every occasion.</p>
     </header>
-
+    <div class="top-right-buttons">
+<?php if (isset($_SESSION['username'])): ?>
+    <button onclick="window.location.href='user.php'">Account</button>
+<?php else: ?>
+    <button onclick="window.location.href='signup.php'">Sign Up</button>
+    <button onclick="window.location.href='signin.php'">Sign In</button>
+<?php endif; ?>
+</div>
     <main class="container">
         <section class="home-section">
             <h2>Newest Recipes (with Images)</h2> <?php /* Updated heading slightly */ ?>
@@ -139,6 +146,6 @@ function extractFirstImageUrl($imageUrlString) {
         <p>&copy; <?php echo date('Y'); ?> Recipe Website</p>
     </footer>
 
-    <script src="js/script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
