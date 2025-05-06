@@ -24,7 +24,7 @@ if ($searchTerm) {
 <head>
     <meta charset="UTF-8">
     <title>Search Results</title>
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <header><h1>Search Results for "<?php echo htmlspecialchars($searchTerm); ?>"</h1></header>
@@ -41,9 +41,19 @@ if ($searchTerm) {
                 <?php endforeach; ?>
             </ul>
         <?php else: ?>
-            <p>No recipes found.</p>
+            <p id="no-results-message">No recipes found.</p>
         <?php endif; ?>
     </main>
+    <script>
+        // JavaScript to hide the "No recipes found" message after 5 seconds
+        document.addEventListener('DOMContentLoaded', function() {
+            const noResultsMessage = document.getElementById('no-results-message');
+            if (noResultsMessage) {
+                setTimeout(function() {
+                    noResultsMessage.style.display = 'none';
+                }, 5000); // 5000 milliseconds = 5 seconds
+            }
+        });
+    </script>
 </body>
 </html>
-
