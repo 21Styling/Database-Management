@@ -1,84 +1,144 @@
 <?php
 // Attempt to include the database connection file
-// This connects to the DB and creates the $pdo variable
-require_once __DIR__ . '/../src/db_connect.php';
+require_once __DIR__ . '/../src/db_connect.php'; // Provides $pdo
 
 // Define a title for the page
-$pageTitle = "Recipe Website";
+$pageTitle = "Recipe Website - Home";
 
-// --- Fetch recipes from the database ---
+// --- Fetch Newest Recipes WITH IMAGES ---
+$newestRecipes = [];
+$newestRecipesError = null; // Variable to hold potential errors
 try {
-    // 1. Prepare the SQL query
-    //    (Make sure 'Recipes' table and columns like RecipeId, Recipe_Name,
-    //     AuthorId, Average_Rating exist in your database)
-    $sql = "SELECT RecipeId, Recipe_Name, AuthorId, Average_Rating
-            FROM Recipes
-            ORDER BY RecipeId DESC -- Changed this line!
-            LIMIT 20";
-
-    // 2. Prepare the statement using the $pdo connection object
-    $stmt = $pdo->prepare($sql);
-
-    // 3. Execute the statement
-    $stmt->execute();
-
-    // 4. Fetch all results into an array of associative arrays
-    $recipes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+    // Fetch latest 5 recipes that have an image URL
+    $sqlNewest = "SELECT RecipeId, Recipe_Name, Average_Rating, Image_URL
+                  FROM Recipes
+                  WHERE Recipe_Name IS NOT NULL AND Recipe_Name != ''
+                    AND Image_URL IS NOT NULL           -- Added: Must not be NULL
+                    AND Image_URL != ''                 -- Added: Must not be empty string
+                    AND Image_URL != 'character(0)'     -- Added: Must not be 'character(0)'
+                  ORDER BY RecipeId DESC
+                  LIMIT 5";
+    $stmtNewest = $pdo->prepare($sqlNewest);
+    $stmtNewest->execute();
+    $newestRecipes = $stmtNewest->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    // If something goes wrong during the query:
-    // Log the actual error for server admin/developer
-    error_log("Database Query Error: " . $e->getMessage());
-    // Set $recipes to empty to avoid errors in the HTML below
-    $recipes = [];
-    // We'll display a user-friendly message in the HTML part
-    $queryError = "Sorry, an error occurred while fetching recipes.";
+    // Log error and set a user-friendly message if query fails
+    error_log("Database Query Error (Newest Recipes): " . $e->getMessage());
+    $newestRecipesError = "Could not load newest recipes.";
 }
-// --- End of fetching recipes ---
+
+$topCategories = [];
+$categoriesError = null; // Variable to hold potential errors
+try {
+    $sqlCategories = "SELECT Category, COUNT(*) as recipe_count
+                      FROM Recipes
+                      WHERE Category IS NOT NULL
+                        AND Category != ''
+                        AND Category NOT LIKE '< %'
+                        AND Category NOT REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}T'
+                        AND Category != '0'
+                      GROUP BY Category
+                      ORDER BY recipe_count DESC
+                      LIMIT 20";
+    $stmtCategories = $pdo->prepare($sqlCategories);
+    $stmtCategories->execute();
+    $topCategories = $stmtCategories->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    error_log("Database Query Error (Categories): " . $e->getMessage());
+    $categoriesError = "Could not load recipe categories.";
+}
+
+/**
+ * Function to extract the first valid image URL from the stored string.
+ */
+function extractFirstImageUrl($imageUrlString) {
+    if (empty($imageUrlString) || $imageUrlString === 'character(0)') { return null; }
+    $trimmedUrl = trim($imageUrlString, ' "');
+    if (filter_var($trimmedUrl, FILTER_VALIDATE_URL)) { return $trimmedUrl; }
+    if (preg_match('/^c?\("([^"]+)"/', $imageUrlString, $matches)) {
+        $potentialUrl = $matches[1];
+        if (filter_var($potentialUrl, FILTER_VALIDATE_URL)) { return $potentialUrl; }
+    }
+    return null;
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($pageTitle); // Use htmlspecialchars for safety ?></title>
-    <link rel="stylesheet" href="css/style.css"> </head>
+    <title><?php echo htmlspecialchars($pageTitle); ?></title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
 <body>
-    <h1>Welcome to the Recipe Website!</h1>
 
-    <hr> <h2>Recipe List</h2>
+    <header class="site-header">
+        <h1>Welcome to the Recipe Website!</h1>
+        <p>Find delicious recipes for every occasion.</p>
+    </header>
 
-    <?php
-    // Check if there was a query error during fetching
-    if (isset($queryError)):
-    ?>
-        <p style='color: red;'><?php echo $queryError; ?></p>
-    <?php
-    // Check if the $recipes array is not empty (meaning query ran successfully and found recipes)
-    elseif (!empty($recipes)):
-    ?>
-        <ul>
-            <?php foreach ($recipes as $recipe): ?>
-                <li>
-                    <?php /* Display Recipe Name */ ?>
-                    <strong><?php echo htmlspecialchars($recipe['Recipe_Name']); ?></strong>
+    <main class="container">
+        <section class="home-section">
+            <h2>Newest Recipes (with Images)</h2> <?php /* Updated heading slightly */ ?>
+            <?php if ($newestRecipesError): ?>
+                <p class="error-message"><?php echo $newestRecipesError; ?></p>
+            <?php elseif (!empty($newestRecipes)): ?>
+                <ul class="recipe-list recipe-list-with-images">
+                    <?php foreach ($newestRecipes as $recipe): ?>
+                        <li>
+                            <?php $imageUrl = extractFirstImageUrl($recipe['Image_URL']); ?>
+                            <?php if ($imageUrl): // Should always find one now based on query ?>
+                                <a href="recipe_detail.php?id=<?php echo htmlspecialchars($recipe['RecipeId']); ?>">
+                                    <img src="<?php echo htmlspecialchars($imageUrl); ?>"
+                                         alt="<?php echo htmlspecialchars($recipe['Recipe_Name']); ?>"
+                                         class="recipe-list-image"
+                                         loading="lazy"
+                                         onerror="this.style.display='none'">
+                                </a>
+                            <?php else: // Fallback just in case extraction fails ?>
+                                <div class="recipe-list-image-placeholder">No Image</div>
+                            <?php endif; ?>
+                            <div class="recipe-list-info">
+                                <a href="recipe_detail.php?id=<?php echo htmlspecialchars($recipe['RecipeId']); ?>">
+                                    <?php echo htmlspecialchars($recipe['Recipe_Name']); ?>
+                                </a>
+                                <span class="rating">(Rating: <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?>)</span>
+                            </div>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php else: ?>
+                <p>No new recipes with images found.</p> <?php /* Updated message */ ?>
+            <?php endif; ?>
+        </section>
 
-                    <?php /* Display other details - use null coalescing (??) for potentially NULL values */ ?>
-                    (ID: <?php echo htmlspecialchars($recipe['RecipeId']); ?>,
-                     Rating: <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?>,
-                     AuthorID: <?php echo htmlspecialchars($recipe['AuthorId'] ?? 'N/A'); ?>)
+        <section class="home-section">
+            <h2>Top Recipe Categories</h2>
+            <?php if ($categoriesError): ?>
+                <p class="error-message"><?php echo $categoriesError; ?></p>
+            <?php elseif (!empty($topCategories)): ?>
+                <ul class="category-list">
+                    <?php foreach ($topCategories as $categoryData): ?>
+                        <li>
+                            <a href="category.php?name=<?php echo urlencode($categoryData['Category']); ?>">
+                                <?php echo htmlspecialchars($categoryData['Category']); ?>
+                            </a>
+                            <span class="category-count">(<?php echo $categoryData['recipe_count']; ?> recipes)</span>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php else: ?>
+                <p>No categories found.</p>
+            <?php endif; ?>
+        </section>
+        <a href="pantry_search.php">Search by Ingredients</a>
+    </main>
 
-                    <?php /* Example: Add a link later */ ?>
-                    <?php /* <a href="recipe_detail.php?id=<?php echo $recipe['RecipeId']; ?>">View Details</a> */ ?>
-                </li>
-            <?php endforeach; ?>
-        </ul>
-    <?php
-    // If $recipes is empty AND there was no query error, then no recipes were found
-    else:
-    ?>
-        <p>No recipes found in the database.</p>
-    <?php endif; ?>
+    <footer class="site-footer">
+        <p>&copy; <?php echo date('Y'); ?> Recipe Website</p>
+    </footer>
 
-    <script src="js/script.js"></script> </body>
+    <script src="js/script.js"></script>
+</body>
 </html>
