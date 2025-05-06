@@ -87,6 +87,13 @@ function extractFirstImageUrl($imageUrlString) {
 </div>
     <main class="container">
         <section class="home-section">
+        <h2>Search Recipes by Name</h2>
+        <form action="search_results.php" method="get" class="recipe-search-form">
+        <input type="text" name="q" placeholder="Enter recipe name..." required>
+        <button type="submit">Search</button>
+    </form>
+</section>
+
             <h2>Newest Recipes (with Images)</h2> <?php /* Updated heading slightly */ ?>
             <?php if ($newestRecipesError): ?>
                 <p class="error-message"><?php echo $newestRecipesError; ?></p>
