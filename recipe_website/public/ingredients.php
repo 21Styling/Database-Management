@@ -25,7 +25,7 @@ $names  = json_decode($user['Owned_Ingredients'] ?? '[]', true);
 $quants = json_decode($user['User_Quantity']    ?? '[]', true);
 
 // List of units for the dropdown
-$units = ['cup','tbsp','tsp','g','kg','ml','l','piece'];
+$units = ['cup','tbsp','tsp','g','kg','ml','l','piece','whole'];
 
 // Build rows array with parsed qty + unit
 $rows = [];
@@ -46,6 +46,10 @@ foreach ($names as $i => $n) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo $pageTitle; ?></title>
     <link rel="stylesheet" href="style.css">
+    <header class="site-header">
+        <h1>Ingredients</h1>
+        <p><a href="user.php">&laquo; Back to Account</a></p>
+    </header>
   <title>Your Ingredients</title>
   <style>
     .edit-row { display: none; }
