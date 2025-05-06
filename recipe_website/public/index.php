@@ -1,4 +1,5 @@
 <?php
+session_start();             
 // Attempt to include the database connection file
 require_once __DIR__ . '/../src/db_connect.php'; // Provides $pdo
 
