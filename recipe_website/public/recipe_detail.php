@@ -142,7 +142,7 @@ if (isset($_SESSION['username'])) {
     elseif ($recipe):
     ?>
         <h1>
-            <?php echo htmlspecialchars($recipe['Recipe_Name'] ?? 'Recipe Name Not Found'); ?>
+        <?php echo htmlspecialchars(html_entity_decode($recipe['Recipe_Name'] ?? 'Recipe Name Not Found')); ?>
             <i class="far fa-star favorite-star <?php echo (isset($_SESSION['username']) && in_array($recipe['RecipeId'], $userFavorites)) ? 'favorited' : ''; ?>"
                data-recipe-id="<?php echo htmlspecialchars($recipe['RecipeId']); ?>"></i>
             <span class="favorite-message" id="fav-msg-<?php echo htmlspecialchars($recipe['RecipeId']); ?>"></span>
