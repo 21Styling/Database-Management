@@ -115,7 +115,7 @@ $pageTitle = "Your Favorite Recipes";
                         <?php endif; ?>
                         <div class="recipe-list-info">
                             <a href="recipe_detail.php?id=<?php echo htmlspecialchars($recipe['RecipeId']); ?>">
-                                <?php echo htmlspecialchars($recipe['Recipe_Name']); ?>
+                            <?php echo htmlspecialchars(html_entity_decode($recipe['Recipe_Name'])); ?>
                             </a>
                             <span class="rating">(Rating: <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?>)</span>
                             <i class="fas fa-star favorite-star" data-recipe-id="<?php echo htmlspecialchars($recipe['RecipeId']); ?>"></i>
