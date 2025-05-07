@@ -1,5 +1,4 @@
 <?php
-session_start();             
 // Attempt to include the database connection file
 require_once __DIR__ . '/../src/db_connect.php'; // Provides $pdo
 
@@ -9,22 +8,6 @@ $pageTitle = "Recipe Website - Home";
 // --- Fetch Newest Recipes WITH IMAGES ---
 $newestRecipes = [];
 $newestRecipesError = null; // Variable to hold potential errors
-$searchTerm = $_GET['q'] ?? '';
-$searchResults = [];
-if ($searchTerm) {
-    try {
-        $sql = "SELECT RecipeId, Recipe_Name, Average_Rating, Image_URL
-                FROM Recipes
-                WHERE Recipe_Name LIKE :searchTerm
-                ORDER BY Recipe_Name ASC
-                LIMIT 20";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute(['searchTerm' => '%' . $searchTerm . '%']);
-        $searchResults = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        error_log("Search Query Error: " . $e->getMessage());
-    }
-}
 try {
     // Fetch latest 5 recipes that have an image URL
     $sqlNewest = "SELECT RecipeId, Recipe_Name, Average_Rating, Image_URL
@@ -79,19 +62,6 @@ function extractFirstImageUrl($imageUrlString) {
     return null;
 }
 
-// Fetch user's favorite recipes if logged in
-$userFavorites = [];
-if (isset($_SESSION['username'])) {
-    try {
-        $stmt = $pdo->prepare("SELECT Favorites FROM User WHERE Username = ?");
-        $stmt->execute([$_SESSION['username']]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $userFavorites = $result ? json_decode($result['Favorites'], true) : [];
-    } catch (PDOException $e) {
-        error_log("Database error fetching favorites: " . $e->getMessage());
-    }
-}
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -99,21 +69,7 @@ if (isset($_SESSION['username'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> <style>
-        .favorite-star {
-            cursor: pointer;
-            color: #ccc; /* Default color (outline) */
-        }
-        .favorite-star.favorited {
-            color: gold; /* Color when favorited */
-        }
-        .favorite-message {
-            font-size: 0.8em;
-            color: #777;
-            margin-top: 0.2em;
-        }
-    </style>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
@@ -121,24 +77,7 @@ if (isset($_SESSION['username'])) {
         <h1>Welcome to the Recipe Website!</h1>
         <p>Find delicious recipes for every occasion.</p>
     </header>
-    <div class="top-right-buttons">
-<?php if (isset($_SESSION['username'])): ?>
-    <button onclick="window.location.href='user.php'">Account</button>
-<?php else: ?>
-    <button onclick="window.location.href='signup.php'">Sign Up</button>
-    <button onclick="window.location.href='signin.php'">Sign In</button>
-<?php endif; ?>
-</div>
-     <main class="container">
-         <section class="home-section">
-             <h2>Search Recipes by Name</h2>
-             <form action="search_results.php" method="get" class="recipe-search-form">
-                 <input type="text" name="q" placeholder="Enter recipe name..." required>
-                 <button type="submit">Search</button>
-             </form>
-         </section>
- 
-         </main>
+
     <main class="container">
         <section class="home-section">
             <h2>Newest Recipes (with Images)</h2> <?php /* Updated heading slightly */ ?>
@@ -162,12 +101,9 @@ if (isset($_SESSION['username'])) {
                             <?php endif; ?>
                             <div class="recipe-list-info">
                                 <a href="recipe_detail.php?id=<?php echo htmlspecialchars($recipe['RecipeId']); ?>">
-                                    <?php echo htmlspecialchars($recipe['Recipe_Name']); ?>
+                                <?php echo htmlspecialchars(html_entity_decode($recipe['Recipe_Name'])); ?>
                                 </a>
                                 <span class="rating">(Rating: <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?>)</span>
-                                <i class="far fa-star favorite-star <?php echo (isset($_SESSION['username']) && in_array($recipe['RecipeId'], $userFavorites)) ? 'favorited' : ''; ?>"
-                                   data-recipe-id="<?php echo htmlspecialchars($recipe['RecipeId']); ?>"></i>
-                                <span class="favorite-message" id="fav-msg-<?php echo htmlspecialchars($recipe['RecipeId']); ?>"></span>
                             </div>
                         </li>
                     <?php endforeach; ?>
@@ -175,7 +111,6 @@ if (isset($_SESSION['username'])) {
             <?php else: ?>
                 <p>No new recipes with images found.</p> <?php /* Updated message */ ?>
             <?php endif; ?>
-            <a href="all_recipes.php">View All Recipes</a>
         </section>
 
         <section class="home-section">
@@ -204,54 +139,6 @@ if (isset($_SESSION['username'])) {
         <p>&copy; <?php echo date('Y'); ?> Recipe Website</p>
     </footer>
 
-    <script src="script.js"></script>
-    <script>
-        // JavaScript to hide the "No recipes found" message after 5 seconds
-        document.addEventListener('DOMContentLoaded', function() {
-            const noResultsMessage = document.getElementById('no-results-message');
-            if (noResultsMessage) {
-                setTimeout(function() {
-                    noResultsMessage.style.display = 'none';
-                }, 5000); // 5000 milliseconds = 5 seconds
-            }
-
-            // Favorite star functionality
-            document.querySelectorAll('.favorite-star').forEach(star => {
-                star.addEventListener('click', function() {
-                    const recipeId = this.dataset.recipeId;
-                    const messageEl = document.getElementById(`fav-msg-${recipeId}`);
-
-                    // Check if user is logged in (PHP variable from session)
-                    <?php if (isset($_SESSION['username'])): ?>
-                        // User is logged in, call update_favorites.php
-                        fetch('update_favorites.php', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({ recipeId: recipeId, action: this.classList.contains('favorited') ? 'remove' : 'add' })
-                        })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                this.classList.toggle('favorited');
-                                messageEl.textContent = this.classList.contains('favorited') ? 'Added to favorites' : 'Removed from favorites';
-                                setTimeout(() => messageEl.textContent = '', 2000); // Clear message after 2 seconds
-                            } else {
-                                messageEl.textContent = data.message;
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error:', error);
-                            messageEl.textContent = 'Failed to update favorites.';
-                        });
-                    <?php else: ?>
-                        // User is not logged in
-                        messageEl.textContent = 'Please sign in to add recipes to favorites.';
-                    <?php endif; ?>
-                });
-            });
-        });
-    </script>
+    <script src="js/script.js"></script>
 </body>
 </html>
