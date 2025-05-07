@@ -9,7 +9,22 @@ $pageTitle = "Recipe Website - Home";
 // --- Fetch Newest Recipes WITH IMAGES ---
 $newestRecipes = [];
 $newestRecipesError = null; // Variable to hold potential errors
-
+$searchTerm = $_GET['q'] ?? '';
+$searchResults = [];
+if ($searchTerm) {
+    try {
+        $sql = "SELECT RecipeId, Recipe_Name, Average_Rating, Image_URL
+                FROM Recipes
+                WHERE Recipe_Name LIKE :searchTerm
+                ORDER BY Recipe_Name ASC
+                LIMIT 20";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute(['searchTerm' => '%' . $searchTerm . '%']);
+        $searchResults = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Search Query Error: " . $e->getMessage());
+    }
+}
 try {
     // Fetch latest 5 recipes that have an image URL
     $sqlNewest = "SELECT RecipeId, Recipe_Name, Average_Rating, Image_URL
@@ -85,8 +100,7 @@ if (isset($_SESSION['username'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"> <style>
         .favorite-star {
             cursor: pointer;
             color: #ccc; /* Default color (outline) */
@@ -115,7 +129,7 @@ if (isset($_SESSION['username'])) {
     <button onclick="window.location.href='signin.php'">Sign In</button>
 <?php endif; ?>
 </div>
-     <main>
+     <main class="container">
          <section class="home-section">
              <h2>Search Recipes by Name</h2>
              <form action="search_results.php" method="get" class="recipe-search-form">
