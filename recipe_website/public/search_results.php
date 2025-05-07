@@ -5,7 +5,7 @@ require_once __DIR__ . '/../src/db_connect.php';
 $searchTerm = $_GET['q'] ?? '';
 $searchResults = [];
 $page = $_GET['page'] ?? 1;
-$resultsPerPage = 10;
+$resultsPerPage = 20;
 $offset = ($page - 1) * $resultsPerPage;
 
 if ($searchTerm) {
@@ -72,8 +72,6 @@ function extractFirstImageUrl($imageUrlString) {
     }
     return null;
 }
-
-$pageTitle = "Search Results for \"" . htmlspecialchars($searchTerm) . "\"";
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -82,6 +80,11 @@ $pageTitle = "Search Results for \"" . htmlspecialchars($searchTerm) . "\"";
     <title><?php echo htmlspecialchars($pageTitle); ?></title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <header class="site-header">
+        <h1>Search Results</h1>
+        <p><a href="index.php">&laquo; Back to Home</a></p>
+    </header>
+  <title>Results for <?php echo htmlspecialchars($_SESSION['searchTerm']); ?></title>
     <style>
         .favorite-star {
             cursor: pointer;
@@ -128,7 +131,7 @@ $pageTitle = "Search Results for \"" . htmlspecialchars($searchTerm) . "\"";
     <header>
         <h1>Search Results for "<?php echo htmlspecialchars($searchTerm); ?>"</h1>
     </header>
-    <main class="container">
+    <main>
         <?php if (isset($error_message)): ?>
             <p class="error-message"><?php echo $error_message; ?></p>
         <?php elseif (!empty($searchResults)): ?>
