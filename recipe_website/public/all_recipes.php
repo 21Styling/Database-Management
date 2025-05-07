@@ -131,7 +131,7 @@ function extractFirstImageUrl($imageUrlString) {
         .pagination .current-page { background-color: #0056b3; color: white; border-color: #0056b3; font-weight: bold; }
         .pagination .disabled { color: #aaa; border-color: #eee; pointer-events: none; }
 
-        /* Favorite star styles - can move to style.css if not already there */
+      
         .favorite-star {
             cursor: pointer;
             color: #ccc; /* Default color (outline) */
@@ -178,7 +178,7 @@ function extractFirstImageUrl($imageUrlString) {
                         <?php endif; ?>
                         <div class="recipe-list-info">
                             <a href="recipe_detail.php?id=<?php echo htmlspecialchars($recipe['RecipeId']); ?>">
-                                <?php echo htmlspecialchars($recipe['Recipe_Name']); ?>
+                            <?php echo htmlspecialchars(html_entity_decode($recipe['Recipe_Name'])); ?>
                             </a>
                             <span class="rating">(Rating: <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?>)</span>
                             <i class="far fa-star favorite-star <?php echo (isset($_SESSION['username']) && is_array($userFavorites) && in_array($recipe['RecipeId'], $userFavorites)) ? 'fas favorited' : 'far'; ?>"
