@@ -154,7 +154,7 @@ function extractFirstImageUrl($imageUrlString) {
                         <?php endif; ?>
                         <div class="recipe-list-info">
                             <a href="recipe_detail.php?id=<?php echo htmlspecialchars($recipe['RecipeId']); ?>">
-                                <?php echo htmlspecialchars($recipe['Recipe_Name']); ?>
+                            <?php echo htmlspecialchars(html_entity_decode($recipe['Recipe_Name'])); ?>
                             </a>
                             <span class="rating">(Rating: <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?>)</span>
                             <i class="far fa-star favorite-star <?php echo (isset($_SESSION['username']) && in_array($recipe['RecipeId'], $userFavorites)) ? 'favorited' : ''; ?>"
