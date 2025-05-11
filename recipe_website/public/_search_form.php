@@ -7,6 +7,8 @@ $form_action = "search_results.php"; // Default action
 // Values for pre-filling the form
 $searchTermVal = isset($_GET['q']) ? htmlspecialchars($_GET['q']) : '';
 $searchByVal = isset($_GET['search_by']) ? $_GET['search_by'] : 'recipe_name';
+// New toggle state
+$matchOwnedIngredientsVal = isset($_GET['match_owned_ingredients']) ? 'checked' : '';
 
 // Nutrition fields for easier iteration
 $nutrition_form_fields_for_form = [
@@ -37,6 +39,12 @@ $time_form_keys_for_form = ['PrepTime' => 'Prep Time', 'CookTime' => 'Cook Time'
             </select>
             <br><br>
 
+            <h5>Ingredient Matching:</h5>
+            <label for="match_owned_ingredients_on_page">
+                <input type="checkbox" name="match_owned_ingredients" id="match_owned_ingredients_on_page" value="1" <?php echo $matchOwnedIngredientsVal; ?>>
+                Only show recipes I can make with my ingredients
+            </label>
+            <br><br>
             <h5>Nutrition Facts (per serving):</h5>
             <?php
             foreach ($nutrition_form_fields_for_form as $field_key => $field_label) {
@@ -104,6 +112,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const resetSearchBtn = document.getElementById('resetSearchBtn');
     const mainSearchForm = document.getElementById('mainSearchForm');
     const searchInput = document.getElementById('searchInput'); // The main search text input
+    // New toggle
+    const matchOwnedIngredientsCheckbox = document.getElementById('match_owned_ingredients_on_page');
 
     if(advancedSearchBtn && advancedSearchOptions) {
         advancedSearchBtn.addEventListener('click', function() {
@@ -127,26 +137,24 @@ document.addEventListener('DOMContentLoaded', function() {
             'min_RecipeServings', 'max_RecipeServings',
             'min_PrepTime_hr', 'min_PrepTime_min', 'max_PrepTime_hr', 'max_PrepTime_min',
             'min_CookTime_hr', 'min_CookTime_min', 'max_CookTime_hr', 'max_CookTime_min',
-            'min_TotalTime_hr', 'min_TotalTime_min', 'max_TotalTime_hr', 'max_TotalTime_min'
+            'min_TotalTime_hr', 'min_TotalTime_min', 'max_TotalTime_hr', 'max_TotalTime_min',
+            'match_owned_ingredients' // Added new toggle
         ];
 
-        // Check if any advanced parameter (excluding 'q') has a value, or if 'search_by' is not the default.
         for (const key of advancedParamKeys) {
             if (urlParams.has(key) && urlParams.get(key) !== '') {
                 if (key === 'search_by' && urlParams.get(key) === 'recipe_name') {
-                    // If search_by is recipe_name, only consider it advanced if other filters are also set
                     for (const otherKey of advancedParamKeys) {
                         if (otherKey !== 'search_by' && urlParams.has(otherKey) && urlParams.get(otherKey) !== '') {
                             advancedActive = true; break;
                         }
                     }
                 } else {
-                     advancedActive = true; // Any other advanced key with a value, or search_by not default
+                     advancedActive = true; 
                 }
                 if (advancedActive) break;
             }
         }
-        // Also consider 'q' empty but other filters set as a reason to show advanced
         if (!urlParams.has('q') || urlParams.get('q') === '') {
             for (const key of advancedParamKeys) {
                  if (key !== 'search_by' && urlParams.has(key) && urlParams.get(key) !== '') {
@@ -164,19 +172,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (resetSearchBtn && mainSearchForm) {
         resetSearchBtn.addEventListener('click', function() {
-            // Clear all input fields and select elements within the form
-            mainSearchForm.reset(); // This resets form elements to their default values specified in HTML
-
-            // Specifically clear values that might not be reset by form.reset() if they were dynamically set
-            // or if you want to ensure they are empty strings.
-            const inputs = mainSearchForm.querySelectorAll('input[type="text"], input[type="number"]');
-            inputs.forEach(input => input.value = '');
-
+            mainSearchForm.reset(); 
+            const inputs = mainSearchForm.querySelectorAll('input[type="text"], input[type="number"], input[type="checkbox"]');
+            inputs.forEach(input => {
+                if(input.type === 'checkbox') input.checked = false;
+                else input.value = '';
+            });
             const selects = mainSearchForm.querySelectorAll('select');
-            selects.forEach(select => select.selectedIndex = 0); // Reset to the first option
-
-            // Redirect to the current page without any query parameters
-            // This effectively "resets" the search state.
+            selects.forEach(select => select.selectedIndex = 0); 
             window.location.href = window.location.pathname;
         });
     }
