@@ -66,6 +66,9 @@ if (isset($_SESSION['username'])) {
         $userFavorites = [];
     }
 }
+
+// Get state for the new toggle
+$matchOwnedIngredientsValIndex = isset($_GET['match_owned_ingredients']) ? 'checked' : '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -88,18 +91,18 @@ if (isset($_SESSION['username'])) {
         #advancedSearchOptions br { margin-bottom: 8px; line-height:1.5; }
         #advancedSearchOptions h5 { margin-top: 12px; margin-bottom: 6px; font-size: 1em; color: #333;}
         .time-input-set { margin-bottom: 5px; }
-        .recipe-list-image-placeholder { /* Ensure this style is effective */
-            width: 80px; /* Match .recipe-list-image width */
-            height: 60px; /* Match .recipe-list-image height */
+        .recipe-list-image-placeholder { 
+            width: 80px; 
+            height: 60px; 
             background-color: #eee;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #aaa;
             font-style: italic;
-            margin-right: 1em; /* Match .recipe-list-image margin-right */
-            border-radius: 3px; /* Match .recipe-list-image border-radius */
-            flex-shrink: 0; /* Match .recipe-list-image flex-shrink */
+            margin-right: 1em; 
+            border-radius: 3px; 
+            flex-shrink: 0; 
             text-align: center;
             font-size:0.8em;
         }
@@ -142,6 +145,13 @@ if (isset($_SESSION['username'])) {
                         <option value="keywords" <?php if (($_GET['search_by'] ?? '') === 'keywords') echo 'selected'; ?>>Keywords (Name, Desc, Ingred.)</option>
                         <option value="author" <?php if (($_GET['search_by'] ?? '') === 'author') echo 'selected'; ?>>Author ID</option>
                     </select>
+                    <br><br>
+
+                    <h5>Ingredient Matching:</h5>
+                    <label for="match_owned_ingredients_index">
+                        <input type="checkbox" name="match_owned_ingredients" id="match_owned_ingredients_index" value="1" <?php echo $matchOwnedIngredientsValIndex; ?>>
+                        Only show recipes I can make with my ingredients
+                    </label>
                     <br><br>
                     <h5>Nutrition Facts (per serving):</h5>
                     <?php
@@ -264,6 +274,9 @@ if (isset($_SESSION['username'])) {
         const advancedSearchOptions = document.getElementById('advancedSearchOptions');
         const resetSearchBtn = document.getElementById('resetSearchBtnIndex');
         const recipeSearchForm = document.getElementById('recipeSearchFormIndex');
+        // New toggle for index page
+        const matchOwnedIngredientsCheckboxIndex = document.getElementById('match_owned_ingredients_index');
+
 
         if(advancedSearchBtn && advancedSearchOptions) {
             advancedSearchBtn.addEventListener('click', function() {
@@ -286,7 +299,8 @@ if (isset($_SESSION['username'])) {
                 'min_RecipeServings', 'max_RecipeServings',
                 'min_PrepTime_hr', 'min_PrepTime_min', 'max_PrepTime_hr', 'max_PrepTime_min',
                 'min_CookTime_hr', 'min_CookTime_min', 'max_CookTime_hr', 'max_CookTime_min',
-                'min_TotalTime_hr', 'min_TotalTime_min', 'max_TotalTime_hr', 'max_TotalTime_min'
+                'min_TotalTime_hr', 'min_TotalTime_min', 'max_TotalTime_hr', 'max_TotalTime_min',
+                'match_owned_ingredients' // Added new toggle
             ];
             for (const key of advancedParamKeys) {
                 if (urlParams.has(key) && urlParams.get(key) !== '') {
@@ -324,12 +338,16 @@ if (isset($_SESSION['username'])) {
         if (resetSearchBtn) {
             resetSearchBtn.addEventListener('click', function() {
                 if (recipeSearchForm) {
-                    const inputs = recipeSearchForm.querySelectorAll('input[type="text"], input[type="number"]');
-                    inputs.forEach(input => input.value = '');
+                    const inputs = recipeSearchForm.querySelectorAll('input[type="text"], input[type="number"], input[type="checkbox"]');
+                     inputs.forEach(input => {
+                        if(input.type === 'checkbox') input.checked = false;
+                        else input.value = '';
+                    });
                     const selects = recipeSearchForm.querySelectorAll('select');
                     selects.forEach(select => select.selectedIndex = 0);
                 }
-                window.location.href = 'all_recipes.php';
+                // Redirect to all_recipes.php as per existing logic, or index.php if preferred for a homepage reset
+                window.location.href = 'index.php'; // Or 'all_recipes.php'
             });
         }
 
