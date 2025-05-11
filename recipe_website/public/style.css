@@ -1,0 +1,341 @@
+body {
+    background-color: white;
+  }
+  
+  .top-right-buttons {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  }
+  
+  .top-right-buttons button {
+    background-color: lightgray;
+    color: black;
+    border: none;
+    border-radius: 4px;
+    /* ↓ reduce padding to shrink the buttons: ↓ */
+    padding: 5px 8px;
+    /* ↓ make the text a bit smaller: ↓ */
+    font-size: 0.85rem;
+    margin-left: 10px;
+    transition: background-color 0.3s;
+  }
+  body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+a {
+    color: #0056b3;
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+img { /* Basic responsive images */
+    max-width: 100%;
+    height: auto;
+}
+
+/* Layout & Sections */
+.site-header,
+.site-footer {
+    background-color: #333;
+    color: #fff;
+    padding: 1em 2em;
+    text-align: center;
+}
+
+.site-header h1 {
+    margin: 0 0 0.2em 0;
+}
+main.container h4  {
+        padding: 1em 0;                     /* As requested: Adjust padding */
+        border-bottom: 3px solid #eee;      /* As requested: Border bottom */
+}
+
+.site-header p {
+    margin: 0;
+    color: #ccc;
+}
+
+.container {
+    max-width: 960px; /* Limit content width */
+    margin: 2em auto; /* Center the container with space */
+    padding: 1.5em; /* Add padding inside container */
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    border-radius: 5px; /* Slightly rounded corners */
+    overflow: hidden; /* Contain floats or margins */
+}
+
+.home-section {
+    padding: 1.5em 0; /* Adjust padding */
+    border-bottom: 1px solid #eee;
+}
+
+.home-section:last-child {
+    border-bottom: none;
+}
+
+.home-section h2 {
+    margin-top: 0;
+    color: #555;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 0.3em;
+    margin-bottom: 1em;
+}
+
+/* Recipe List Styles */
+.recipe-list-with-images li {
+    display: flex; /* Use flexbox for layout */
+    align-items: flex-start; /* Align items to the top */
+    padding: 0.8em 0;
+    border-bottom: 1px dotted #ddd;
+}
+.recipe-list-with-images li:last-child {
+    border-bottom: none;
+}
+
+.recipe-list-image {
+    width: 80px; /* Fixed width for thumbnails */
+    height: 60px; /* Fixed height */
+    object-fit: cover; /* Crop image to fit dimensions */
+    margin-right: 1em; /* Space between image and text */
+    border-radius: 3px;
+    flex-shrink: 0; /* Prevent image from shrinking */
+}
+
+.recipe-list-info {
+    flex-grow: 1; /* Allow text to take remaining space */
+}
+.recipe-list-info a {
+    font-weight: bold;
+    display: block; /* Make link take full width */
+    margin-bottom: 0.2em;
+}
+
+.recipe-list-info .rating {
+    font-size: 0.9em;
+    color: #777;
+}
+
+/* Category List Styles */
+.category-list {
+    columns: 3; /* Display categories in columns (adjust count as needed) */
+    -webkit-columns: 3;
+    -moz-columns: 3;
+    column-gap: 2em;
+}
+
+.category-list li {
+    padding: 0.2em 0;
+    border-bottom: none; /* Remove bottom border for columns */
+    break-inside: avoid-column; /* Prevent items breaking across columns */
+}
+
+
+/* Recipe Detail Page Styles */
+.recipe-main-image {
+     max-width: 100%;
+     height: auto;
+     display: block;
+     margin-bottom: 1.5em;
+     border-radius: 5px;
+     box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Optional shadow */
+}
+
+.recipe-meta {
+    background-color: #f9f9f9;
+    padding: 0.8em 1em;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    margin-bottom: 1.5em;
+    font-size: 0.9em;
+    color: #555;
+}
+.recipe-meta p {
+    margin: 0.3em 0;
+}
+.recipe-meta strong {
+    color: #333;
+}
+
+.recipe-section { margin-bottom: 1.5em; }
+.recipe-section h2 { margin-bottom: 0.5em; color: #444; }
+.recipe-ingredients ul, .recipe-instructions ol { margin-left: 2em; }
+.recipe-ingredients p { margin: 0.5em 0; } /* Adjust spacing for ingredients */
+
+
+/* Utility */
+.error-message {
+    color: #d9534f; /* Red for errors */
+    font-weight: bold;
+}
+
+/* Responsive (Very Basic Example) */
+@media (max-width: 768px) {
+    .category-list {
+        columns: 2;
+        -webkit-columns: 2;
+        -moz-columns: 2;
+    }
+}
+
+@media (max-width: 600px) {
+    .site-header,
+    .site-footer {
+        padding: 1em;
+        text-align: center;
+    }
+    .container {
+        margin: 1em 0;
+        border-radius: 0;
+        padding: 1em;
+    }
+    .recipe-list-with-images li {
+        flex-direction: column; /* Stack image and text on small screens */
+        align-items: center;
+        text-align: center;
+    }
+    .recipe-list-image {
+        width: 150px; /* Larger image when stacked */
+        height: 110px;
+        margin-right: 0;
+        margin-bottom: 0.5em;
+    }
+    .category-list {
+        columns: 1;
+        -webkit-columns: 1;
+        -moz-columns: 1;
+    }
+}
+/* styles.css */
+
+/* Wrapper for sort controls on all_recipes.php if in its own form */
+.all-recipes-sort-form-wrapper {
+  display: flex;
+  justify-content: flex-end; /* Align sort to the right */
+  align-items: center;
+  margin-bottom: 1em; /* Consistent spacing */
+}
+
+/* Container for sort dropdown and direction button */
+.sort-controls-container {
+  display: flex;
+  align-items: center;
+  /* If sort controls are inside another form that is already styled (e.g. search_results.php),
+     you might want specific alignment like justify-content: flex-end on this container or its parent. */
+}
+
+/* For search_results.php, to push sort controls to the right within the search form section */
+.search-form-container .sort-controls-container {
+  margin-left: auto; /* Pushes sort controls to the right if parent is flex */
+  padding-left: 20px; /* Some space from other form elements */
+}
+
+
+.sort-controls-container label {
+  margin-right: 8px;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.sort-controls-container select,
+.sort-controls-container .sort-direction-button,
+.sort-controls-container .apply-sort-button {
+  padding: 5px 10px;
+  font-size: 0.9em;
+  margin-left: 8px;
+  height: 31px;
+  box-sizing: border-box;
+  vertical-align: middle;
+  border: 1px solid #ccc;
+  background-color: #f8f8f8;
+  border-radius: 4px;
+}
+
+.sort-controls-container .sort-direction-button,
+.sort-controls-container .apply-sort-button {
+  cursor: pointer;
+  background-color: lightgray; /* Match other buttons */
+  color: black;
+  border: none; /* Match other buttons */
+}
+
+.sort-controls-container .sort-direction-button:hover,
+.sort-controls-container .apply-sort-button:hover {
+  background-color: #e0e0e0;
+}
+
+/* Ensuring consistent button styling with existing search buttons */
+.recipe-search-form-on-all > button,
+.recipe-search-form-on-results > button,
+.sort-controls-container .sort-direction-button,
+.sort-controls-container .apply-sort-button {
+  padding: 5px 10px;
+  font-size: 0.9em;
+  margin-left: 5px;
+  vertical-align: middle;
+  cursor: pointer;
+  box-sizing: border-box;
+  height: 31px;
+  border-radius: 4px;
+  border: none;
+ /* background-color: lightgray; /* Base, might be overridden */
+ /* color: black; /* Base, might be overridden */
+}
+
+.sort-controls-container label[for^="sort_by"] { /* Targets labels for sort_by dropdowns */
+  margin-left: 0;
+}
+.recipe-search-form-on-results input[type="text"] {
+  padding: 4px 8px; /* Adjusted padding */
+  font-size: 0.9em;
+  margin-right: 5px;
+  vertical-align: middle;
+  box-sizing: border-box;
+  height: 28px; /* Reduced height */
+}
+sort-controls-container select,
+.sort-controls-container .sort-direction-button {
+    height: 28px; /* Adjust to new standard height */
+    padding: 4px 8px; /* Adjust padding to fit new height */
+    /* Other properties like font-size, margin-left, etc., remain as previously set */
+}
+.recipe-search-form-on-results > button {
+  padding: 5px 10px; /* Or adjust padding as needed */
+  font-size: 0.9em;
+  margin-left: 5px;
+  vertical-align: middle;
+  cursor: pointer;
+  box-sizing: border-box;
+  height: 28px; /* Optional: adjust to match input height */
+  border-radius: 4px;
+  border: none;
+  /* background-color: lightgray; */ /* Keep existing background/color */
+  /* color: black; */
+}
+/* Optional: Add a wrapper around search and sort for better alignment if needed */
+.search-and-sort-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1em;
+}
+.search-and-sort-bar .search-form-container-left { /* if you wrap search inputs */
+  flex-grow: 1; /* Allows search to take available space */
+}
+/* If you use .search-and-sort-bar, the .sort-controls-container might not need margin-left: auto */
+  

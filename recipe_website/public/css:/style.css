@@ -1,0 +1,23 @@
+body {
+    background-color: #eef;
+  }
+  
+  h1 {
+    color: red;
+  }
+  
+  .top-right-buttons {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: 2px dashed red;
+  }
+  
+  .top-right-buttons button {
+    margin-left: 10px;
+    padding: 10px;
+    background-color: darkgreen;
+    color: white;
+    border: none;
+    border-radius: 5px;
+  }
