@@ -1,6 +1,5 @@
 <?php
-// This form will be included in other pages.
-// Ensure $_GET values are pre-filled.
+
 $current_page_script = basename($_SERVER['PHP_SELF']);
 $form_action = "search_results.php"; // Default action
 
@@ -104,8 +103,6 @@ $time_form_keys_for_form = ['PrepTime' => 'Prep Time', 'CookTime' => 'Cook Time'
 </section>
 
 <script>
-// JavaScript for toggling advanced search and handling reset
-// We put this here so it's always included with the form
 document.addEventListener('DOMContentLoaded', function() {
     const advancedSearchBtn = document.getElementById('advancedSearchBtnOnPage');
     const advancedSearchOptions = document.getElementById('advancedSearchOptionsOnPage');

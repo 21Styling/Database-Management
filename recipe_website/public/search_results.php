@@ -3,7 +3,7 @@ session_start();
 require_once __DIR__ . '/../src/db_connect.php'; // Provides $pdo
 
 // --- CONSTANT FOR PHP FILTERING LIMIT ---
-define('PHP_FILTER_LIMIT', 300); // Process up to 300 recipes in PHP for ingredient matching
+define('PHP_FILTER_LIMIT', 100000); // Process up to 300 recipes in PHP for ingredient matching
 
 // --- Search Term & Type ---
 $searchTerm = $_GET['q'] ?? '';
@@ -14,10 +14,6 @@ $matchOwnedIngredientsValResults = isset($_GET['match_owned_ingredients']) ? 'ch
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($page < 1) $page = 1;
 $resultsPerPage = 20;
-// $offset will be calculated after we know the totalResults from PHP filtering if applicable
-
-// ... (Sort parameters, SQL Base, SQL Where, Filter mappings - remain mostly the same as your updated version) ...
-// --- Get Sort Parameters ---
 $sort_by_options_sr = [
     'relevance'      => ['column' => null,               'default_dir' => 'ASC'],
     'recipe_name'    => ['column' => 'R.Recipe_Name',    'default_dir' => 'ASC'],
@@ -625,7 +621,7 @@ if (!empty($_GET['match_owned_ingredients']) && isset($_SESSION['username'])) {
             const advancedSearchOptionsResults = document.getElementById('advancedSearchOptionsResults');
             const resetSearchBtnResults = document.getElementById('resetSearchBtnResults');
             const recipeSearchFormResults = document.getElementById('recipeSearchFormResults');
-            // const pageInputResults = recipeSearchFormResults.querySelector('input[name="page"]'); // Already defined earlier
+           
             const currentPageHiddenInput = document.getElementById('current_page_hidden_input');
 
 
@@ -706,7 +702,6 @@ if (!empty($_GET['match_owned_ingredients']) && isset($_SESSION['username'])) {
                 });
             }
 
-            // Favorite star functionality (ensure this is present and correct)
             document.querySelectorAll('.favorite-star').forEach(star => {
                 star.addEventListener('click', function() {
                     const recipeId = this.dataset.recipeId;
