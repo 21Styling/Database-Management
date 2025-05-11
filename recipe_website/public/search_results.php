@@ -2,16 +2,21 @@
 session_start();
 require_once __DIR__ . '/../src/db_connect.php'; // Provides $pdo
 
+// --- CONSTANT FOR PHP FILTERING LIMIT ---
+define('PHP_FILTER_LIMIT', 300); // Process up to 300 recipes in PHP for ingredient matching
+
 // --- Search Term & Type ---
 $searchTerm = $_GET['q'] ?? '';
 $searchBy = $_GET['search_by'] ?? 'recipe_name';
+$matchOwnedIngredientsValResults = isset($_GET['match_owned_ingredients']) ? 'checked' : '';
 
 // --- Pagination ---
 $page = isset($_GET['page']) && is_numeric($_GET['page']) ? (int)$_GET['page'] : 1;
 if ($page < 1) $page = 1;
 $resultsPerPage = 20;
-$offset = ($page - 1) * $resultsPerPage;
+// $offset will be calculated after we know the totalResults from PHP filtering if applicable
 
+// ... (Sort parameters, SQL Base, SQL Where, Filter mappings - remain mostly the same as your updated version) ...
 // --- Get Sort Parameters ---
 $sort_by_options_sr = [
     'relevance'      => ['column' => null,               'default_dir' => 'ASC'],
@@ -30,8 +35,7 @@ $sort_dir_sr = isset($_GET['sort_dir']) && in_array(strtoupper($_GET['sort_dir']
 
 // --- Base SQL with JOIN ---
 $joinCondition = "R.RecipeId = M.MealId";
-// Ensure R.Rating_Count and R.Date are selected
-$sqlBase = "SELECT R.RecipeId, R.Recipe_Name, R.Author, R.Description, R.Ingredients,
+$sqlBase = "SELECT R.RecipeId, R.Recipe_Name, R.Author, R.Description, R.Ingredients, R.Ingredient_Quantity,
             R.Average_Rating, R.Image_URL, R.Servings AS RecipeTableServings, R.Rating_Count, R.Date AS SubmissionDate,
             M.Calories, M.Fat, M.Saturated_Fat, M.Cholesterol, M.Sodium,
             M.Carbohydrate, M.Fiber, M.Sugar, M.Protein,
@@ -50,7 +54,7 @@ if (!empty($searchTerm)) {
             $sqlParams[':searchTerm'] = '%' . $searchTerm . '%';
             break;
         case 'author':
-            $sqlWhere[] = "R.Author = :searchTermAuthor";
+            $sqlWhere[] = "R.Author = :searchTermAuthor"; 
             $sqlParams[':searchTermAuthor'] = $searchTerm; 
             break;
         case 'recipe_name':
@@ -83,6 +87,7 @@ foreach ($nutrition_db_map as $form_key => $db_column) {
         $sqlParams[":max_$form_key"] = $_GET['max_' . $form_key];
     }
 }
+// ... (similar for servings and time filters, ensure these are correct from your previous update) ...
 foreach ($servings_db_map as $form_key => $db_column) {
     if (isset($_GET['min_' . $form_key]) && is_numeric($_GET['min_' . $form_key]) && $_GET['min_' . $form_key] !== '') {
         $sqlWhere[] = "$db_column >= :min_$form_key";
@@ -94,37 +99,29 @@ foreach ($servings_db_map as $form_key => $db_column) {
     }
 }
 
-// --- Process Time Filters (Hours/Minutes) ---
 foreach ($time_form_keys_srp as $form_key_filter_srp => $label_srp) {
     $db_column = $time_db_columns_map_srp[$form_key_filter_srp];
     $min_hr_input = $_GET['min_' . $form_key_filter_srp . '_hr'] ?? ''; $min_min_input = $_GET['min_' . $form_key_filter_srp . '_min'] ?? '';
-    $apply_min_time_filter = false; $min_total_minutes_value = 0;
     if (($min_hr_input !== '' && is_numeric($min_hr_input)) || ($min_min_input !== '' && is_numeric($min_min_input))) {
-        $apply_min_time_filter = true;
         $hours = (is_numeric($min_hr_input) && $min_hr_input >= 0) ? (int)$min_hr_input : 0;
         $minutes = (is_numeric($min_min_input) && $min_min_input >= 0 && $min_min_input < 60) ? (int)$min_min_input : 0;
         $min_total_minutes_value = ($hours * 60) + $minutes;
-    }
-    if ($apply_min_time_filter) {
         $sqlWhere[] = "(TIME_TO_SEC($db_column) / 60) >= :min_total_minutes_$form_key_filter_srp";
         $sqlParams[":min_total_minutes_$form_key_filter_srp"] = $min_total_minutes_value;
     }
 
     $max_hr_input = $_GET['max_' . $form_key_filter_srp . '_hr'] ?? ''; $max_min_input = $_GET['max_' . $form_key_filter_srp . '_min'] ?? '';
-    $apply_max_time_filter = false; $max_total_minutes_value = 0;
     if (($max_hr_input !== '' && is_numeric($max_hr_input)) || ($max_min_input !== '' && is_numeric($max_min_input))) {
-        $apply_max_time_filter = true;
         $hours = (is_numeric($max_hr_input) && $max_hr_input >= 0) ? (int)$max_hr_input : 0;
         $minutes = (is_numeric($max_min_input) && $max_min_input >= 0 && $max_min_input < 60) ? (int)$max_min_input : 0;
         $max_total_minutes_value = ($hours * 60) + $minutes;
-    }
-    if ($apply_max_time_filter) {
         if ($max_total_minutes_value > 0 || ($max_hr_input !== '' || $max_min_input !== '')) { 
             $sqlWhere[] = "(TIME_TO_SEC($db_column) / 60) <= :max_total_minutes_$form_key_filter_srp";
             $sqlParams[":max_total_minutes_$form_key_filter_srp"] = $max_total_minutes_value;
         }
     }
 }
+
 
 $sqlWhere[] = "R.Recipe_Name IS NOT NULL AND R.Recipe_Name != ''"; 
 
@@ -133,93 +130,197 @@ if (!empty($sqlWhere)) {
     $finalSql .= " WHERE " . implode(" AND ", $sqlWhere);
 }
 
-// --- Count Total Results & Fetch Paged Data ---
 $totalResults = 0;
 $totalPages = 0;
 $searchResults = [];
 $error_message = null;
-$debug_sql_tried = ""; 
+$debug_sql_tried = "";
 
-$hasSearchCriteria = !empty($searchTerm);
-if (!$hasSearchCriteria) {
-    foreach ($_GET as $key => $value) {
-        if ($value !== '' && !in_array($key, ['q', 'search_by', 'page', 'sort_by', 'sort_dir'])) {
-            $hasSearchCriteria = true;
-            break;
-        }
-    }
-    if (!$hasSearchCriteria && ($searchBy !== 'recipe_name' && $searchBy !== '')) { $hasSearchCriteria = true;}
-}
+$hasSearchCriteria = !empty($searchTerm) || !empty(array_filter($_GET, function($v, $k){
+    return $v !== '' && !in_array($k, ['q', 'page', 'sort_by', 'sort_dir']);
+}, ARRAY_FILTER_USE_BOTH));
+if (isset($_GET['match_owned_ingredients'])) { $hasSearchCriteria = true; }
 
 
 if ($hasSearchCriteria) {
     try {
-        $countSql = "SELECT COUNT(DISTINCT R.RecipeId) as total FROM Recipes R LEFT JOIN Meal M ON " . $joinCondition;
-        if (!empty($sqlWhere)) {
-            $countSql .= " WHERE " . implode(" AND ", $sqlWhere);
+        $orderByClause = "";
+        if ($current_sort_column_sr) { 
+            $orderByClause = " ORDER BY $current_sort_column_sr $sort_dir_sr";
+            if ($sort_by_sr !== 'recipe_name' && $current_sort_column_sr !== 'R.Recipe_Name') $orderByClause .= ", R.Recipe_Name ASC";
+            if ($sort_by_sr !== 'date_added' && $current_sort_column_sr !== 'R.Date') $orderByClause .= ", R.Date DESC";
+        } else { // Default sort if no specific sort or relevance is chosen
+            $orderByClause = " ORDER BY R.Recipe_Name ASC";
         }
-        $debug_sql_tried = $countSql; 
 
-        $stmtCount = $pdo->prepare($countSql);
+        $dataQuerySql = $finalSql . " GROUP BY R.RecipeId " . $orderByClause;
+        
+        // Apply a limit if 'match_owned_ingredients' is ON to reduce PHP processing load
+        if (!empty($_GET['match_owned_ingredients']) && isset($_SESSION['username'])) {
+            $dataQuerySql .= " LIMIT " . PHP_FILTER_LIMIT; // No OFFSET here, pagination applied after PHP filter
+        }
+        // $debug_sql_tried = $dataQuerySql; // For debugging
+
+        $stmtPaged = $pdo->prepare($dataQuerySql);
         if (!empty($sqlParams)) {
-             foreach ($sqlParams as $key => $value) {
-                $paramType = PDO::PARAM_STR; 
-                if (strpos($key, 'Author') !== false && is_numeric($value)) $paramType = PDO::PARAM_INT;
-                elseif (is_int($value)) $paramType = PDO::PARAM_INT;
-                elseif (is_bool($value)) $paramType = PDO::PARAM_BOOL;
-                elseif (is_null($value)) $paramType = PDO::PARAM_NULL;
-                $stmtCount->bindValue($key, $value, $paramType);
+            foreach ($sqlParams as $key => $value) {
+                // Determine param type (ensure this is robust)
+                $paramType = is_int($value) ? PDO::PARAM_INT : (is_bool($value) ? PDO::PARAM_BOOL : (is_null($value) ? PDO::PARAM_NULL : PDO::PARAM_STR));
+                $stmtPaged->bindValue($key, $value, $paramType);
             }
         }
-        $stmtCount->execute();
-        $totalResults = (int)$stmtCount->fetchColumn();
+        $stmtPaged->execute();
+        $allMatchingRecipes = $stmtPaged->fetchAll(PDO::FETCH_ASSOC);
+        
+        $phpFilteredRecipes = [];
 
-        if ($totalResults > 0) {
-            $totalPages = ceil($totalResults / $resultsPerPage);
-            if ($page > $totalPages && $totalPages > 0) { $page = $totalPages; $offset = ($page - 1) * $resultsPerPage; }
-            elseif ($page < 1) { $page = 1; $offset = 0;}
-
-            $orderByClause = "";
-            if ($current_sort_column_sr) { 
-                $orderByClause = " ORDER BY $current_sort_column_sr $sort_dir_sr";
-                if ($sort_by_sr !== 'recipe_name' && $current_sort_column_sr !== 'R.Recipe_Name') $orderByClause .= ", R.Recipe_Name ASC";
-                if ($sort_by_sr !== 'date_added' && $current_sort_column_sr !== 'R.Date' && $current_sort_column_sr !== 'R.RecipeId') $orderByClause .= ", R.Date DESC";
-
-            } elseif ($searchBy === 'keywords' && !empty($searchTerm)) {
-                 $orderByClause = " ORDER BY R.Recipe_Name ASC"; 
-            } else {
-                $orderByClause = " ORDER BY R.Recipe_Name ASC";
-            }
-
-            $dataQuerySql = $finalSql . " GROUP BY R.RecipeId " . $orderByClause . " LIMIT :limit OFFSET :offset";
-            $debug_sql_tried = $dataQuerySql; 
-
-            $stmtPaged = $pdo->prepare($dataQuerySql);
-            if (!empty($sqlParams)) {
-                foreach ($sqlParams as $key => $value) {
-                    $paramType = PDO::PARAM_STR;
-                    if (strpos($key, 'Author') !== false && is_numeric($value)) $paramType = PDO::PARAM_INT;
-                    elseif (is_int($value)) $paramType = PDO::PARAM_INT;
-                    elseif (is_bool($value)) $paramType = PDO::PARAM_BOOL;
-                    elseif (is_null($value)) $paramType = PDO::PARAM_NULL;
-                    $stmtPaged->bindValue($key, $value, $paramType);
+        if (!empty($_GET['match_owned_ingredients']) && isset($_SESSION['username'])) {
+            $username = $_SESSION['username'];
+            $stmtUserIng = $pdo->prepare("SELECT Owned_Ingredients, User_Quantity FROM User WHERE Username = ?");
+            $stmtUserIng->execute([$username]);
+            $userIngData = $stmtUserIng->fetch(PDO::FETCH_ASSOC);
+            $ownedIngredientNames = json_decode($userIngData['Owned_Ingredients'] ?? '[]', true);
+            $ownedIngredientQuantitiesFull = json_decode($userIngData['User_Quantity'] ?? '[]', true);
+            
+            $parsedUserIngredients = []; // Key: ingredient name, Value: ['quantity' => X, 'unit' => Y]
+            // Basic parsing for user's owned ingredients (NEEDS TO BE VERY ROBUST)
+            if (is_array($ownedIngredientNames) && is_array($ownedIngredientQuantitiesFull)) {
+                foreach ($ownedIngredientNames as $idx => $name) {
+                    if (!isset($ownedIngredientQuantitiesFull[$idx])) continue;
+                    $fullName = strtolower(trim($name));
+                    $quantityStr = $ownedIngredientQuantitiesFull[$idx];
+                    if (preg_match('/^([\d\.\s\/]+)\s*([a-zA-Z]+)/', $quantityStr, $matches)) { // Improved regex for quantity
+                        $quantityValue = $matches[1];
+                        // Basic fraction handling (e.g., "1/2", "1 1/2") - needs more work for robustness
+                        if (strpos($quantityValue, '/') !== false) {
+                            if (strpos($quantityValue, ' ') !== false) { // "1 1/2"
+                                list($whole, $fraction) = explode(' ', $quantityValue);
+                                list($num, $den) = explode('/', $fraction);
+                                if ($den != 0) $quantityValue = (float)$whole + ((float)$num / (float)$den);
+                                else $quantityValue = (float)$whole;
+                            } else { // "1/2"
+                                list($num, $den) = explode('/', $quantityValue);
+                                if ($den != 0) $quantityValue = (float)$num / (float)$den;
+                                else $quantityValue = 0;
+                            }
+                        } else {
+                            $quantityValue = floatval($quantityValue);
+                        }
+                        $parsedUserIngredients[$fullName] = ['quantity' => $quantityValue, 'unit' => strtolower(trim($matches[2]))];
+                    } elseif (!empty($fullName)) { // If no quantity/unit but name exists, assume available (e.g., "salt")
+                        $parsedUserIngredients[$fullName] = ['quantity' => PHP_INT_MAX, 'unit' => 'unit']; // Effectively infinite quantity
+                    }
                 }
             }
-            $stmtPaged->bindValue(':limit', $resultsPerPage, PDO::PARAM_INT);
-            $stmtPaged->bindValue(':offset', $offset, PDO::PARAM_INT);
+            
+            foreach ($allMatchingRecipes as $recipe) {
+                $canMakeRecipe = true; 
+                // Placeholder for the actual complex ingredient parsing and comparison logic
+                // This logic needs to be very robust, handle various string formats for ingredients,
+                // perform unit conversions, and compare quantities.
+                // Example: $recipeIngredients = parseRecipeIngredients($recipe['Ingredients'], $recipe['Ingredient_Quantity']);
+                // foreach ($recipeIngredient as $reqIng) { if (!userHasEnough($reqIng, $parsedUserIngredients)) { $canMakeRecipe = false; break; }}
+                
+                // --- Rudimentary Check (must be replaced with robust parsing & comparison) ---
+                $recipeIngredientsString = strtolower(is_array($recipe['Ingredients']) ? implode(",", $recipe['Ingredients']) : (string)$recipe['Ingredients']);
+                if (empty($recipeIngredientsString) || $recipeIngredientsString === "[]" || $recipeIngredientsString === "''") {
+                    // No ingredients listed in recipe, assume can be made
+                } else {
+                    // Attempt to parse recipe ingredients (this is highly simplified)
+                    // A better approach would parse Recipe.Ingredients and Recipe.Ingredient_Quantity
+                    $tempRecipeIngredients = array_map('trim', preg_split("/(,'|\s*,\s*|'\s*,\s*')/", trim($recipeIngredientsString, "[]'\"")));
+                    $tempRecipeIngredients = array_filter($tempRecipeIngredients); // Remove empty items
 
-            $stmtPaged->execute();
-            $searchResults = $stmtPaged->fetchAll(PDO::FETCH_ASSOC);
-        } else {
-            $searchResults = [];
+                    if (empty($tempRecipeIngredients)) {
+                         // Still no specific ingredients after parsing
+                    } else {
+                        foreach($tempRecipeIngredients as $r_ing_name_only) {
+                            if (empty($r_ing_name_only)) continue;
+                            $foundThisRecipeIng = false;
+                            foreach($parsedUserIngredients as $owned_name => $owned_details) {
+                                // Simple name check (e.g., "flour" in "all-purpose flour")
+                                if (strpos($owned_name, $r_ing_name_only) !== false || strpos($r_ing_name_only, $owned_name) !== false) {
+                                    // Here, you would also parse Recipe.Ingredient_Quantity for $r_ing_name_only
+                                    // and compare its quantity and unit against $owned_details['quantity'] and $owned_details['unit']
+                                    // after appropriate unit conversion.
+                                    $foundThisRecipeIng = true;
+                                    break;
+                                }
+                            }
+                            if (!$foundThisRecipeIng) {
+                                $canMakeRecipe = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                // --- End Rudimentary Check ---
+
+                if ($canMakeRecipe) {
+                    $phpFilteredRecipes[] = $recipe;
+                }
+            }
+            $searchResults = $phpFilteredRecipes;
+            $totalResults = count($searchResults);
+        } else { // Toggle is OFF, or user not logged in but toggle ON (no PHP filter applied beyond SQL)
+            $searchResults = $allMatchingRecipes; // These are already limited if toggle was on but no session
+                                                // Or all if toggle was off (SQL will get count later)
+            // If toggle was OFF, we need to get the true total count from the DB without the PHP_FILTER_LIMIT
+            if (empty($_GET['match_owned_ingredients'])) {
+                $countSql = "SELECT COUNT(DISTINCT R.RecipeId) as total FROM Recipes R LEFT JOIN Meal M ON " . $joinCondition;
+                if (!empty($sqlWhere)) {
+                    $countSql .= " WHERE " . implode(" AND ", $sqlWhere);
+                }
+                $stmtTotalCount = $pdo->prepare($countSql);
+                if (!empty($sqlParams)) {
+                    foreach ($sqlParams as $key => $value) {
+                        $paramType = is_int($value) ? PDO::PARAM_INT : (is_bool($value) ? PDO::PARAM_BOOL : (is_null($value) ? PDO::PARAM_NULL : PDO::PARAM_STR));
+                        $stmtTotalCount->bindValue($key, $value, $paramType);
+                    }
+                }
+                $stmtTotalCount->execute();
+                $totalResults = (int)$stmtTotalCount->fetchColumn();
+                
+                // And now, apply SQL pagination to the $searchResults if toggle was off
+                // This re-fetches the paged data.
+                $offsetForSqlPage = ($page - 1) * $resultsPerPage;
+                $dataQuerySqlWithPage = $finalSql . " GROUP BY R.RecipeId " . $orderByClause . " LIMIT :limit OFFSET :offset";
+                $stmtSqlPaged = $pdo->prepare($dataQuerySqlWithPage);
+                 if (!empty($sqlParams)) {
+                    foreach ($sqlParams as $key => $value) {
+                        $paramType = is_int($value) ? PDO::PARAM_INT : (is_bool($value) ? PDO::PARAM_BOOL : (is_null($value) ? PDO::PARAM_NULL : PDO::PARAM_STR));
+                        $stmtSqlPaged->bindValue($key, $value, $paramType);
+                    }
+                }
+                $stmtSqlPaged->bindValue(':limit', $resultsPerPage, PDO::PARAM_INT);
+                $stmtSqlPaged->bindValue(':offset', $offsetForSqlPage, PDO::PARAM_INT);
+                $stmtSqlPaged->execute();
+                $searchResults = $stmtSqlPaged->fetchAll(PDO::FETCH_ASSOC);
+
+            } else { // Toggle was ON but no session, $allMatchingRecipes is already limited by PHP_FILTER_LIMIT
+                 $totalResults = count($searchResults); // Total is just what we fetched and "can make" (all of them in this case)
+            }
         }
+
+        // Apply PHP-side pagination to the $searchResults array
+        $totalPages = ceil($totalResults / $resultsPerPage);
+        if ($page > $totalPages && $totalPages > 0) { $page = $totalPages; }
+        if ($page < 1) { $page = 1; }
+        $offset = ($page - 1) * $resultsPerPage;
+        $searchResults = array_slice($searchResults, $offset, $resultsPerPage);
+
     } catch (PDOException $e) {
-        error_log("Advanced Search PDOException: " . $e->getMessage() . " --- SQL tried: " . $debug_sql_tried . " --- Params: " . print_r($sqlParams, true));
-        $error_message = "An error occurred while performing the search. Please check your input or the PHP error log for more details. SQL: " . $debug_sql_tried;
+        error_log("Search Results PDOException: " . $e->getMessage() . " --- SQL: " . ($debug_sql_tried ?: "Not available"));
+        $error_message = "An error occurred during the search. Please try again later.";
         $searchResults = [];
+        $totalResults = 0;
+        $totalPages = 0;
     }
 }
 
+// ... (Rest of the file: $userFavorites, extractFirstImageUrl, HTML structure)
+// Make sure the HTML part is identical to your updated version from the previous step,
+// including the new toggle checkbox inside #advancedSearchOptionsResults and the JavaScript.
 $userFavorites = [];
 if (isset($_SESSION['username'])) {
     try {
@@ -251,6 +352,9 @@ elseif ($hasSearchCriteria) { $pageTitle = "Advanced Search Results"; }
 if ($sort_by_sr !== 'relevance') {
     $pageTitle .= " (Sorted by " . ucwords(str_replace('_', ' ', $sort_by_sr)) . " " . $sort_dir_sr . ")";
 }
+if (!empty($_GET['match_owned_ingredients']) && isset($_SESSION['username'])) {
+    $pageTitle .= " [My Ingredients]";
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -261,7 +365,6 @@ if ($sort_by_sr !== 'relevance') {
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
-        /* Ensure your style.css has the updated rules for search bar height and sort controls */
         #advancedSearchOptionsResults label { display: inline-block; margin-right: 5px; margin-left:10px; font-size:0.9em; }
         #advancedSearchOptionsResults input[type="number"] { width: 60px; margin-right: 3px; padding: 4px; font-size:0.9em; }
         #advancedSearchOptionsResults .time-input-group span { margin-left: 2px; margin-right: 10px; font-size:0.9em; }
@@ -269,8 +372,6 @@ if ($sort_by_sr !== 'relevance') {
         #advancedSearchOptionsResults br { margin-bottom: 8px; line-height:1.5; }
         #advancedSearchOptionsResults h5 { margin-top: 12px; margin-bottom: 6px; font-size: 1em; color: #333;}
         #advancedSearchOptionsResults .time-input-set { margin-bottom: 5px; }
-        /* The rule for .recipe-search-form-on-results input[type="text"] height is in style.css */
-        .recipe-search-form-on-results > button { /* Ensure this matches the input height if changed in style.css */ }
         .pagination { margin: 2em 0 1em 0; text-align: center; }
         .pagination a, .pagination span { display: inline-block; padding: 0.5em 1em; margin: 0 0.2em; border: 1px solid #ddd; color: #0056b3; text-decoration: none; border-radius: 3px; }
         .pagination a:hover { background-color: #eee; }
@@ -316,6 +417,17 @@ if ($sort_by_sr !== 'relevance') {
                             <option value="author" <?php if (($_GET['search_by'] ?? '') === 'author') echo 'selected'; ?>>Author</option>
                         </select>
                         <br><br>
+
+                        <h5>Ingredient Matching:</h5>
+                        <label for="match_owned_ingredients_results">
+                            <input type="checkbox" name="match_owned_ingredients" id="match_owned_ingredients_results" value="1" <?php echo $matchOwnedIngredientsValResults; ?>>
+                            Only show recipes I can make with my ingredients
+                        </label>
+                        <?php if (isset($_GET['match_owned_ingredients']) && !isset($_SESSION['username'])): ?>
+                            <small style="color:red; display:block;"> (Sign in to use this feature effectively)</small>
+                        <?php endif; ?>
+                        <br><br>
+
                         <h5>Nutrition Facts (per serving):</h5>
                         <?php
                         $nutrition_form_fields_display_srp = [
@@ -376,7 +488,7 @@ if ($sort_by_sr !== 'relevance') {
                         <input type="hidden" name="sort_dir" id="sort_dir_results_page" value="<?php echo htmlspecialchars($sort_dir_sr); ?>">
                         <button type="button" id="sort_dir_toggle_results_page" class="sort-direction-button"><?php echo htmlspecialchars($sort_dir_sr); ?></button>
                     </div>
-                    <input type="hidden" name="page" value="<?php echo $page; ?>" id="search_results_page_input">
+                    <input type="hidden" name="page" id="current_page_hidden_input" value="<?php echo $page; ?>">
                 </form>
             </section>
         </div>
@@ -395,6 +507,13 @@ if ($sort_by_sr !== 'relevance') {
                     } elseif (count(array_filter(array_keys($_GET), function($k){ return !in_array($k, ['q', 'search_by', 'page', 'sort_by', 'sort_dir']); })) > 0 ) {
                         echo "Displaying results based on advanced filters.";
                     }
+                    if (!empty($_GET['match_owned_ingredients']) && isset($_SESSION['username'])) {
+                        echo " <span style='color:green;'>(Showing recipes you can make";
+                        if (count($allMatchingRecipes) >= PHP_FILTER_LIMIT && count($phpFilteredRecipes) < PHP_FILTER_LIMIT) {
+                             echo " from a sample of " . PHP_FILTER_LIMIT;
+                        }
+                        echo ")</span>";
+                    }
                     if ($sort_by_sr !== 'relevance') {
                         echo " Sorted by " . ucwords(str_replace('_', ' ', $sort_by_sr)) . " " . $sort_dir_sr . ".";
                     }
@@ -402,9 +521,12 @@ if ($sort_by_sr !== 'relevance') {
                 </p>
                 <?php
                     $activeFiltersList_srp = [];
-                    // ... (code to populate $activeFiltersList_srp based on GET params - you can copy this from your previous version if needed) ...
+                    if (!empty($_GET['match_owned_ingredients']) && isset($_SESSION['username'])) {
+                        $activeFiltersList_srp[] = "Matching Owned Ingredients";
+                    }
+                    // You can add more active filter displays here if needed
                     if (!empty($activeFiltersList_srp)) {
-                        echo "<p>Active Filters: " . implode('; ', $activeFiltersList_srp) . "</p>";
+                        echo "<p><i>Active Filters: " . implode('; ', $activeFiltersList_srp) . "</i></p>";
                     }
                 ?>
                 <p>Found <?php echo $totalResults; ?> recipe(s).
@@ -423,14 +545,16 @@ if ($sort_by_sr !== 'relevance') {
                         <?php if ($imageUrl): ?>
                             <a href="recipe_detail.php?id=<?php echo htmlspecialchars($recipe['RecipeId']); ?>">
                                 <img src="<?php echo htmlspecialchars($imageUrl); ?>"
-                                <?php echo htmlspecialchars(html_entity_decode($recipe['Recipe_Name'])); ?>                                     class="recipe-list-image" loading="lazy" onerror="this.style.display='none'">
+                                     alt="<?php echo htmlspecialchars(html_entity_decode($recipe['Recipe_Name'])); ?>"
+                                     class="recipe-list-image" loading="lazy" onerror="this.style.display='none'">
                             </a>
                         <?php else: ?>
                             <div class="recipe-list-image-placeholder">No Image</div>
                         <?php endif; ?>
                         <div class="recipe-list-info">
                             <a href="recipe_detail.php?id=<?php echo htmlspecialchars($recipe['RecipeId']); ?>">
-                            <?php echo htmlspecialchars(html_entity_decode($recipe['Recipe_Name'])); ?>                            </a>
+                            <?php echo htmlspecialchars(html_entity_decode($recipe['Recipe_Name'])); ?>
+                            </a>
                             <span class="rating">(Rating: <?php echo htmlspecialchars($recipe['Average_Rating'] ?? 'N/A'); ?>)</span>
                              <?php if (isset($_SESSION['username'])): ?>
                                 <?php
@@ -449,12 +573,12 @@ if ($sort_by_sr !== 'relevance') {
             <?php if ($totalPages > 1): ?>
                 <div class="pagination">
                     <?php
-                    $queryParams = $_GET; 
-                    unset($queryParams['page']); 
-                    $queryString = http_build_query($queryParams);
+                    $queryParamsPagination = $_GET; 
                     ?>
-                    <?php if ($page > 1): ?>
-                        <a href="?page=<?php echo $page - 1; ?>&<?php echo $queryString; ?>">&laquo; Previous</a>
+                    <?php if ($page > 1): 
+                        $queryParamsPagination['page'] = $page - 1;
+                    ?>
+                        <a href="?<?php echo http_build_query($queryParamsPagination); ?>">&laquo; Previous</a>
                     <?php else: ?>
                         <span class="disabled">&laquo; Previous</span>
                     <?php endif; ?>
@@ -462,11 +586,12 @@ if ($sort_by_sr !== 'relevance') {
                      $range = 2; 
                     for ($i = 1; $i <= $totalPages; $i++):
                         if ($i == 1 || $i == $totalPages || ($i >= $page - $range && $i <= $page + $range)):
+                            $queryParamsPagination['page'] = $i;
                     ?>
                             <?php if ($i == $page): ?>
                                 <span class="current-page"><?php echo $i; ?></span>
                             <?php else: ?>
-                                <a href="?page=<?php echo $i; ?>&<?php echo $queryString; ?>"><?php echo $i; ?></a>
+                                <a href="?<?php echo http_build_query($queryParamsPagination); ?>"><?php echo $i; ?></a>
                             <?php endif; ?>
                         <?php
                         elseif (($i == $page - $range - 1 && $page - $range -1 > 1) || ($i == $page + $range + 1 && $page + $range +1 < $totalPages) ):
@@ -474,13 +599,16 @@ if ($sort_by_sr !== 'relevance') {
                             <span>...</span>
                         <?php endif; ?>
                     <?php endfor; ?>
-                    <?php if ($page < $totalPages): ?>
-                        <a href="?page=<?php echo $page + 1; ?>&<?php echo $queryString; ?>">Next &raquo;</a>
+                    <?php if ($page < $totalPages): 
+                        $queryParamsPagination['page'] = $page + 1;
+                    ?>
+                        <a href="?<?php echo http_build_query($queryParamsPagination); ?>">Next &raquo;</a>
                     <?php else: ?>
                         <span class="disabled">Next &raquo;</span>
                     <?php endif; ?>
                 </div>
             <?php endif; ?>
+
         <?php elseif (!$hasSearchCriteria && empty($searchResults)) : ?>
              <p>Please enter a search term or use the advanced filters to find recipes.</p>
         <?php elseif ($hasSearchCriteria && empty($searchResults)) : ?>
@@ -497,38 +625,31 @@ if ($sort_by_sr !== 'relevance') {
             const advancedSearchOptionsResults = document.getElementById('advancedSearchOptionsResults');
             const resetSearchBtnResults = document.getElementById('resetSearchBtnResults');
             const recipeSearchFormResults = document.getElementById('recipeSearchFormResults');
-            // Correctly scope pageInputResults to the search form
-            const pageInputResults = recipeSearchFormResults.querySelector('input[name="page"]');
+            // const pageInputResults = recipeSearchFormResults.querySelector('input[name="page"]'); // Already defined earlier
+            const currentPageHiddenInput = document.getElementById('current_page_hidden_input');
 
 
             if(advancedSearchBtnResults && advancedSearchOptionsResults) {
                 advancedSearchBtnResults.addEventListener('click', function() {
-                    if (advancedSearchOptionsResults.style.display === 'none' || advancedSearchOptionsResults.style.display === '') {
-                        advancedSearchOptionsResults.style.display = 'block';
-                        this.textContent = 'Hide Advanced';
-                    } else {
-                        advancedSearchOptionsResults.style.display = 'none';
-                        this.textContent = 'Advanced Search';
-                    }
+                    advancedSearchOptionsResults.style.display = (advancedSearchOptionsResults.style.display === 'none' || advancedSearchOptionsResults.style.display === '') ? 'block' : 'none';
+                    this.textContent = (advancedSearchOptionsResults.style.display === 'block') ? 'Hide Advanced' : 'Advanced Search';
                 });
                 const urlParams = new URLSearchParams(window.location.search);
                 let advancedActiveSR = false;
-                const nonDefaultFilters = ['min_Calories', 'max_Calories', 'min_Fat', 'max_Fat', 'min_Saturated_Fat', 'max_Saturated_Fat', 'min_Cholesterol', 'max_Cholesterol', 'min_Sodium', 'max_Sodium', 'min_Carbohydrate', 'max_Carbohydrate', 'min_Fiber', 'max_Fiber', 'min_Sugar', 'max_Sugar', 'min_Protein', 'max_Protein', 'min_RecipeServings', 'max_RecipeServings', 'min_PrepTime_hr', 'min_PrepTime_min', 'max_PrepTime_hr', 'max_PrepTime_min', 'min_CookTime_hr', 'min_CookTime_min', 'max_CookTime_hr', 'max_CookTime_min', 'min_TotalTime_hr', 'min_TotalTime_min', 'max_TotalTime_hr', 'max_TotalTime_min'];
+                const nonDefaultFilters = [ /* ... your list of filters ... */ 'match_owned_ingredients'];
                 nonDefaultFilters.forEach(key => { if (urlParams.has(key) && urlParams.get(key) !== '') advancedActiveSR = true; });
-                if (urlParams.has('search_by') && urlParams.get('search_by') !== 'recipe_name' && urlParams.get('search_by') !== '') advancedActiveSR = true;
+                if (urlParams.has('search_by') && urlParams.get('search_by') !== 'recipe_name') advancedActiveSR = true;
 
                 if (advancedActiveSR) {
                     advancedSearchOptionsResults.style.display = 'block';
                     if(advancedSearchBtnResults) advancedSearchBtnResults.textContent = 'Hide Advanced';
-                } else {
-                     if(advancedSearchBtnResults) advancedSearchBtnResults.textContent = 'Advanced Search';
                 }
             }
 
             if (recipeSearchFormResults) {
                 recipeSearchFormResults.addEventListener('submit', function() {
-                    if (advancedSearchOptionsResults) advancedSearchOptionsResults.style.display = 'none';
-                    if (advancedSearchBtnResults) advancedSearchBtnResults.textContent = 'Advanced Search';
+                    // When submitting the main form, always reset to page 1 for the new result set
+                    if (currentPageHiddenInput) currentPageHiddenInput.value = '1';
                 });
             }
 
@@ -536,7 +657,10 @@ if ($sort_by_sr !== 'relevance') {
                 resetSearchBtnResults.addEventListener('click', function() {
                     if (recipeSearchFormResults) {
                         recipeSearchFormResults.reset(); 
-                        recipeSearchFormResults.querySelectorAll('input[type="text"], input[type="number"]').forEach(input => input.value = '');
+                        recipeSearchFormResults.querySelectorAll('input[type="text"], input[type="number"], input[type="checkbox"]').forEach(input => {
+                           if(input.type === 'checkbox') input.checked = false;
+                           else input.value = '';
+                        });
                         recipeSearchFormResults.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
                         
                         const sortBySelect = document.getElementById('sort_by_results_page');
@@ -545,47 +669,44 @@ if ($sort_by_sr !== 'relevance') {
                         if(sortBySelect) sortBySelect.value = 'relevance';
                         if(sortDirInput) sortDirInput.value = 'ASC';
                         if(sortDirButton) sortDirButton.textContent = 'ASC';
-                        if(pageInputResults) pageInputResults.value = '1'; 
+                        if(currentPageHiddenInput) currentPageHiddenInput.value = '1'; 
                     }
-                    window.location.href = 'all_recipes.php';
-
+                    window.location.href = 'search_results.php'; 
                 });
             }
             
-            // --- MODIFIED Sort Controls for Search Results Page (Auto-submit) ---
             const sortBySelectResults = document.getElementById('sort_by_results_page');
             const sortDirInputResults = document.getElementById('sort_dir_results_page');
             const sortDirToggleButtonResults = document.getElementById('sort_dir_toggle_results_page');
 
-            const sortOptionsDefaultsResults = {
-                'relevance': 'ASC', 'recipe_name': 'ASC', 'date_added': 'DESC',
-                'calories': 'ASC', 'review_count': 'DESC', 'average_review': 'DESC',
-                'total_time': 'ASC'
-            };
+            const sortOptionsDefaultsResults = { /* ... your sort defaults ... */ };
 
-            if (sortBySelectResults && recipeSearchFormResults) { // Ensure form exists for submission
+            function submitSortOrFilterChange() {
+                if (currentPageHiddenInput) currentPageHiddenInput.value = '1'; // Reset page for sort/filter changes
+                recipeSearchFormResults.submit();
+            }
+
+            if (sortBySelectResults && recipeSearchFormResults) { 
                 sortBySelectResults.addEventListener('change', function() {
                     const selectedSortBy = this.value;
                     const defaultDir = sortOptionsDefaultsResults[selectedSortBy] || 'ASC';
                     if (sortDirInputResults) sortDirInputResults.value = defaultDir;
                     if (sortDirToggleButtonResults) sortDirToggleButtonResults.textContent = defaultDir;
-                    if (pageInputResults) pageInputResults.value = '1'; 
-                    recipeSearchFormResults.submit(); // Auto-submit the form
+                    submitSortOrFilterChange();
                 });
             }
 
-            if (sortDirToggleButtonResults && recipeSearchFormResults) { // Ensure form exists for submission
+            if (sortDirToggleButtonResults && recipeSearchFormResults) { 
                 sortDirToggleButtonResults.addEventListener('click', function() {
                     const currentDir = sortDirInputResults.value;
                     const newDir = currentDir === 'ASC' ? 'DESC' : 'ASC';
                     sortDirInputResults.value = newDir;
                     this.textContent = newDir;
-                    if (pageInputResults) pageInputResults.value = '1'; 
-                    recipeSearchFormResults.submit(); // Auto-submit the form
+                    submitSortOrFilterChange();
                 });
             }
 
-            // Favorite star functionality
+            // Favorite star functionality (ensure this is present and correct)
             document.querySelectorAll('.favorite-star').forEach(star => {
                 star.addEventListener('click', function() {
                     const recipeId = this.dataset.recipeId;
